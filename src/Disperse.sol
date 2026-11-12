@@ -17,7 +17,8 @@ contract Disperse {
     error LengthMismatch();
     error Empty();
     error ZeroRecipient(uint256 index);
-    /// @dev Paying this contract or the token itself would lock the funds forever (no rescue path).
+    /// @dev Paying this contract would lock the funds forever (no rescue path). Only this address is rejected:
+    ///      the token's own address, burn addresses and other contracts are the caller's to filter.
     error SelfRecipient(uint256 index);
     error ZeroAmount(uint256 index);
     error InsufficientAllowance(uint256 needed, uint256 have);

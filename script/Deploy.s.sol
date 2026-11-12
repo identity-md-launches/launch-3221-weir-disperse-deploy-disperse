@@ -9,8 +9,9 @@ import {Disperse} from "../src/Disperse.sol";
 ///      every chain. Change SALT only if the bytecode changes and a fresh address is wanted.
 contract Deploy is Script {
     bytes32 public constant SALT = keccak256("payusdc.disperse.v1");
-    /// @dev Pinned so a silent bytecode drift (solc patch, optimizer setting, code change) between the Sepolia
-    ///      and Base deploys fails loudly instead of landing at a different address on each chain.
+    /// @dev Pinned so a silent bytecode drift (solc patch, optimizer setting, code change) fails loudly instead
+    ///      of landing at a different address than the one already live on Base. The salt is kept from that
+    ///      deployment on purpose: changing it would change the address.
     address public constant EXPECTED = 0x320418D854f3eD0E59e691dD7c767A22B8E5C9E9;
 
     function run() external {

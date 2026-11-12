@@ -13,10 +13,12 @@ interface IPermitToken is IERC20, IERC20Permit {}
 contract DisperseForkTest is Test {
     address constant USDG = 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168;
     address constant WEIR = 0x58b82fa656ECF47a0dca5bE6BAd06B92E22f7dbE;
+    address constant IMD = 0x5F7Bb59365ce557C26dbcAa4EE9d39A4b95B7127;
 
     Disperse internal d;
     IPermitToken internal usdg = IPermitToken(USDG);
     IERC20 internal weir = IERC20(WEIR);
+    IERC20 internal imd = IERC20(IMD);
     uint256 internal senderKey = 0xBA5E;
     address internal sender;
 
@@ -29,6 +31,7 @@ contract DisperseForkTest is Test {
         sender = vm.addr(senderKey);
         deal(USDG, sender, 100_000e6);
         deal(WEIR, sender, 100_000e18);
+        deal(IMD, sender, 1_000e18);
     }
 
     modifier onFork() {
@@ -102,6 +105,23 @@ contract DisperseForkTest is Test {
         assertEq(weir.balanceOf(sender), 100_000e18 - 10_000e18 - 1);
     }
 
+    /// @dev IMD (bridged, 18 decimals, no permit): exact amounts arrive.
+    function test_fork_imdApproveDisperse() public onFork {
+        address[] memory to = new address[](2);
+        uint256[] memory amts = new uint256[](2);
+        to[0] = makeAddr("i1");
+        to[1] = makeAddr("i2");
+        amts[0] = 5e17;
+        amts[1] = 3e18;
+        vm.startPrank(sender);
+        imd.approve(address(d), 35e17);
+        d.disperse(imd, to, amts);
+        vm.stopPrank();
+        assertEq(imd.balanceOf(to[0]), 5e17);
+        assertEq(imd.balanceOf(to[1]), 3e18);
+        assertEq(imd.balanceOf(sender), 1_000e18 - 35e17);
+    }
+
     /// @dev WEIR without permit through disperseWithPermit: zeros for the signature, allowance is the gate.
     function test_fork_weirPermitPathFallsBackToAllowance() public onFork {
         address[] memory to = new address[](1);
@@ -133,6 +153,8 @@ contract DisperseForkTest is Test {
         vm.stopPrank();
         uint256 per = g / n;
         emit log_named_uint("real USDG gas per fresh recipient", per);
-        assertLt(per * 250 + 200_000, 16_000_000, "250 recipients must stay well under a 32M per-tx gas limit");
+        assertLt(
+            per * 250 + 200_000, 16_000_000, "250 recipients must stay under half of the chain's 32M per-tx gas limit"
+        );
     }
 }

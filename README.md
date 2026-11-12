@@ -27,7 +27,16 @@ The source is byte-for-byte the `Disperse` already live on Base and Base Sepolia
 Properties: no constructor arguments, no owner, no fee, no pause, no upgrade, no rescue, no storage. The contract
 never holds tokens, so reentrancy cannot move anything the caller did not already approve. Fee-on-transfer and
 rebasing tokens are unsupported and undetected. A batch is atomic: one recipient the token refuses (a frozen USDG
-address, for example) reverts the whole call and nothing moves.
+address, an address on IMD's owner-controlled blocklist) reverts the whole call and nothing moves; the revert
+does not say which row.
+
+What the caller (the app) must do, because the contract does not:
+
+- Filter recipients. Only `address(0)` and the Disperse address are rejected. The token's own address,
+  `0x…dEaD`, pools and other contracts are paid like anyone else, and holder lists contain them.
+- Simulate each batch first (`eth_call`) and split on a revert to find the refused row.
+- Trust logs only from known tokens and from the recorded Disperse address. A made-up token can emit
+  `Transfer` and `Dispersed` with nothing moved, and `Dispersed.total` is what was asked, not proof of receipt.
 
 ## Tokens on Robinhood Chain (checked on a fork, 2026-11-11)
 
@@ -36,8 +45,12 @@ address, for example) reverts the whole call and nothing moves.
 | USDG (Paxos Global Dollar) | `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` | 6 | yes, EIP-2612: `disperseWithPermit` works in one transaction |
 | WEIR | `0x58b82fa656ecf47a0dca5be6bad06b92e22f7dbe` | 18 | no: approve, then `disperse` |
 
-Gas with real USDG: about 33,700 per fresh-balance recipient, so 250 recipients is about 8.4M. The app caps a batch
-at 250 and splits larger lists.
+IMD (`0x5f7bb59365ce557c26dbcaa4ee9d39a4b95b7127`, 18 decimals, no permit) and SVO also deliver exact amounts.
+None of the four charges a transfer fee. USDG is an upgradeable proxy, so its behaviour can change.
+
+Gas with real USDG: about 34,200 per fresh-balance recipient all in, so 250 recipients is about 8.6M (node
+estimate) against the chain's 32M per-transaction maximum. The app caps a batch at 250, splits larger lists and
+asks the node for the estimate rather than using a constant.
 
 ## Build and test
 
@@ -49,8 +62,8 @@ forge fmt --check
 RH_RPC_URL=https://robinhood-rpc.publicnode.com forge test --match-contract DisperseForkTest -vv
 ```
 
-30 tests: 25 unit and fuzz (mocks for a 6-decimals permit token, a no-return token, a plain token and a reentrant
-token) and 5 fork tests. `foundry.toml`, verbatim:
+32 tests: 26 unit and fuzz (mocks for a 6-decimals permit token, a no-return token, a plain token and a reentrant
+token) and 6 fork tests (USDG, WEIR, IMD). `foundry.toml`, verbatim:
 
 ```toml
 [profile.default]
@@ -90,6 +103,9 @@ in the app repo. This folder is pushed to `weircool/disperse-contracts` as a sub
 address already has code. A swarm deployment lands at the swarm deployer's own address instead; either works.
 
 ## After deployment
+
+Check the deployed code is the tested code: `cast keccak $(cast code <address> --rpc-url $RH_RPC_URL)` must be
+`0xb65a4cb1e0ebc66ee4e7d80658ed75d5013b6c01d003638138623e0968ba43ca`, the same runtime as on Base.
 
 Record the address here and in the app (`src/lib/robinhoodChain.ts`), and write the ABI for the app with
 `forge inspect src/Disperse.sol:Disperse abi --json`.

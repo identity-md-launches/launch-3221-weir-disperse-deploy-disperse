@@ -214,12 +214,24 @@ contract DisperseTest is Test {
 
     function test_disperse_revert_noCodeToken() public {
         (address[] memory to, uint256[] memory amts) = _three();
+        // A call to an address without code reverts with empty data in both paths.
         vm.prank(sender);
-        vm.expectRevert();
+        vm.expectRevert(bytes(""));
         d.disperse(IERC20(address(0xdead)), to, amts);
         vm.prank(sender);
-        vm.expectRevert();
+        vm.expectRevert(bytes(""));
         d.disperseWithPermit(IERC20(address(0xdead)), to, amts, 0, 0, bytes32(0), bytes32(0));
+    }
+
+    /// @dev Documents a limit: the token's own address is NOT rejected as a recipient. Callers filter it.
+    function test_disperse_tokenAsRecipient_isNotRejected() public {
+        (address[] memory to, uint256[] memory amts) = _three();
+        to[1] = address(usdc);
+        vm.startPrank(sender);
+        usdc.approve(address(d), amts[0] + amts[1] + amts[2]);
+        d.disperse(usdc, to, amts);
+        vm.stopPrank();
+        assertEq(usdc.balanceOf(address(usdc)), amts[1]);
     }
 
     function testFuzz_disperse_lengths(uint8 nRaw, uint64 each) public {
