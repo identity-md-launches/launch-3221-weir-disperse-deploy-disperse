@@ -1,0 +1,10 @@
+{
+  "kind": "evm_contracts",
+  "contracts": [
+    {
+      "contract": "Disperse",
+      "constructorArgs": []
+    }
+  ],
+  "notes": "Weir Disperse (contracts only) on Robinhood Chain (chainId 4663). One contract, src/Disperse.sol, no constructor arguments: an ownerless, feeless, stateless helper that pays many recipients one ERC-20 in a single transaction with transferFrom from the caller. No new token, pool, distributor or website."
+}

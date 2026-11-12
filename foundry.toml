@@ -1,0 +1,21 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+solc = "0.8.26"
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+via_ir = false
+bytecode_hash = "none"
+fs_permissions = []
+
+[fuzz]
+runs = 256
+
+[profile.ci.fuzz]
+runs = 2000
+
+[rpc_endpoints]
+robinhood = "${RH_RPC_URL}"
